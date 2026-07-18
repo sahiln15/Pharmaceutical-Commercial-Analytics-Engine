@@ -1,5 +1,7 @@
 # Pharmaceutical Commercial Analytics Engine
 
+![Executive Dashboard](images/page1_overview.png)
+
 An end-to-end Power BI analytics platform built on 404,000+ pharmaceutical sales transactions. The project covers the full BI lifecycle — locale-broken raw data → cleaned star schema → DAX-driven measures → an interactive executive dashboard — aimed at supporting commercial planning, inventory buffering, and sales-team scheduling decisions.
 
 ## Project Overview
@@ -25,6 +27,7 @@ The raw source data couldn't answer any of this directly — it arrived as a wid
 Power Query threw conversion errors across a large share of rows on import. Root cause: the source file was exported under a non-US regional locale, so Power BI misread the datetime values, which broke the date hierarchy and disabled time intelligence entirely.
 
 **Fix applied:**
+
 1. Reset the type-conversion locale to English (United States) before parsing dates/times.
 2. Rebuilt clean date parts using `DAY()`, `MONTH()`, `YEAR()`, `TEXT()` instead of trusting the raw string parse.
 3. Unpivoted the 8 wide drug-class columns into long format (`Drug Class`, `Units Sold`) to make the data measure-friendly.
@@ -34,9 +37,11 @@ Power Query threw conversion errors across a large share of rows on import. Root
 
 ## Data Model — Star Schema
 
+![Star Schema](images/StarSchema.png)
+
 ```
 DimCalendar (1) ──┐
-                   ├──(*) FactSales ──(1) Measures Table
+                   ├──(*) FactSales
 DimDrug (1) ───────┘
 ```
 
@@ -73,6 +78,14 @@ The model contains ~24 measures in total, organized into display folders: Core K
 
 ## Dashboard Pages
 
+### Executive Operations Overview
+
+![Executive Dashboard](images/page1_overview.png)
+
+### Predictive Strategy & Portfolio Performance
+
+![Commercial Dashboard](images/page2_overview.png)
+
 The report file (`PowerBI/Pharmaceutical_Commercial_Analytics_Engine.pbix`) contains four pages:
 
 1. **Executive Operations Overview** — KPI cards, monthly sales trend, volume distribution by drug class, and an hour-vs-weekday demand heatmap for staffing decisions.
@@ -95,13 +108,17 @@ Power BI Desktop · Power Query (M) · DAX · Excel/CSV · Star Schema modeling
 
 ## Repo Structure
 
-```
+```text
+├── Images/
+│   ├── Dashboard_Page1.png
+│   ├── Dashboard_Page2.png
+│   └── StarSchema.png
 ├── PowerBI/
 │   └── Pharmaceutical_Commercial_Analytics_Engine.pbix
 ├── Data/
-│   └── PharmaDrugSales.xlsx        # raw source data (wide format)
+│   └── PharmaDrugSales.xlsx
 ├── docs/
-│   └── dax_measures.md             # full measure list & folders
+│   └── dax_measures.md
 └── README.md
 ```
 
