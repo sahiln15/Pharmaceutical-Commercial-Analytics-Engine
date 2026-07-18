@@ -1,61 +1,215 @@
-# DAX Measure Reference
+# 🧪 Comprehensive DAX Measure Reference Library
 
-All measures live in a dedicated **Measures Table** (not attached to any physical fact/dimension table), organized into display folders inside the Power BI model.
+All explicit data computations are centralized inside a dedicated `Measures Table` semantic layer. To enforce dataset governance, ensure scannability, and prevent implicit calculation bugs, measures are organized into formal display folders.
 
-## Folder: Core KPIs
-- Total Units Sold
-- Total Transactions
-- Average Units Sold
-- Average Daily Sales
-- Average Units Per Day
+---
 
-## Folder: Time Intelligence
-- Previous Month Units
-- Previous Year Units
-- Running Total
-- Month-over-Month Growth %
-- Year-over-Year Growth %
-- Latest Month MoM Growth %
-- Peak Volume Month
+## 📦 Display Folder: 1. KPIs
+*Core volumetric baselines and baseline summary anchors.*
 
-## Folder: Business Intelligence / Strategy
-- Highest Selling Drug
-- Fastest Growing Drug
-- Top 1 Growth Product
-- Top 1 Growth Value
-- Bottom 1 Decline Product
-- Bottom 1 Decline Value
-
-## Folder: Dynamic Dashboard Support
-- Drug Classes (distinct count / list)
-- Last Refresh
-- Maximum Units Sold
-- Minimum Units Sold
-- Sales Trend
-- Dynamic Top Product
-- Dynamic Peak Hour
-- Dynamic Peak Weekday
-- Tooltip MoM Growth %
-
-## Confirmed Formulas
-
+### Total Units Sold
 ```dax
 Total Units Sold = SUM(FactSales[Units Sold])
+```
 
+### Total Transactions
+```dax
 Total Transactions = COUNTROWS(FactSales)
+```
 
-MoM Growth % =
+### Average Units Sold
+```dax
+Average Units Sold = AVERAGE(FactSales[Units Sold])
+```
+
+### Average Daily Sales
+```dax
+Average Daily Sales = DIVIDE([Total Units Sold], COUNTROWS(DimCalendar), 0)
+```
+
+### Average Units Per Day
+```dax
+Avg Units Per Day = AVERAGEX(VALUES(DimCalendar[Date]), [Total Units Sold])
+```
+
+### Maximum Units Sold
+```dax
+Maximum Units Sold = MAXX(FactSales, FactSales[Units Sold])
+```
+
+### Minimum Units Sold
+```dax
+Minimum Units Sold = MINX(FactSales, FactSales[Units Sold])
+```
+
+---
+
+## 📦 Display Folder: 2. Time Intelligence
+*Context-shifting temporal growth loops and period-over-period variance vectors.*
+
+### Month-over-Month (MoM) Growth %
+```dax
+MOM Growth % = 
 VAR CurrentMonthSales = [Total Units Sold]
-VAR PreviousMonthSales =
-    CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, MONTH))
+VAR PreviousMonthSales = CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, MONTH))
 RETURN
     DIVIDE(CurrentMonthSales - PreviousMonthSales, PreviousMonthSales, 0)
+```
 
-Dynamic Top Product =
+### Year-over-Year (YoY) Growth %
+```dax
+YoY Growth % = 
+VAR CurrentYearSales = [Total Units Sold]
+VAR PreviousYearSales = CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, YEAR))
+RETURN
+    DIVIDE(CurrentYearSales - PreviousYearSales, PreviousYearSales, 0)
+```
+
+### Latest Month MoM Growth %
+```dax
+Latest Month MOM Growth % = 
+VAR LastAvailableDate = MAX(FactSales[Date])
+VAR LastMonthSales = CALCULATE([Total Units Sold], FILTER(ALL(DimCalendar), DimCalendar[Month Year] = SELECTEDVALUE(DimCalendar[Month Year])))
+VAR PriorMonthSales = CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, MONTH))
+RETURN
+    IF(ISBLANK([Total Units Sold]), BLANK(), DIVIDE(LastMonthSales - PriorMonthSales, PriorMonthSales, 0))
+```
+
+### Previous Month Units
+```dax
+Previous Month Units = CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, MONTH))
+```
+
+### Previous Year Units
+```dax
+Previous Year Units = CALCULATE([Total Units Sold], DATEADD(DimCalendar[Date], -1, YEAR))
+```
+
+### Running Total
+```dax
+Running Total = 
+CALCULATE(
+    [Total Units Sold],
+    FILTER(
+        ALLSELECTED(DimCalendar),
+        DimCalendar[Date] <= MAX(DimCalendar[Date])
+    )
+)
+```
+
+### Sales Trend
+```dax
+Sales Trend = 
+VAR BaseTrend = [Total Units Sold]
+RETURN
+    IF(ISBLANK(BaseTrend), 0, BaseTrend)
+```
+
+### Peak Volume Month
+```dax
+Peak Volume Month = 
+SELECTCOLUMNS(
+    TOPN(1, ALL(DimCalendar[Month Year]), [Total Units Sold]),
+    "PeakMonth", DimCalendar[Month Year]
+)
+```
+
+---
+
+## 📦 Display Folder: 3. Business Metrics
+*Data-driven, descriptive portfolio evaluations and dimension filters.*
+
+### Drug Classes Count
+```dax
+Drug Classes = DISTINCTCOUNT(FactSales[Drug Class])
+```
+
+---
+
+## 📦 Display Folder: 4. Dynamic Top/Bottom Performers
+*Advanced evaluation blocks to isolate high-velocity growth streams and financial risk flags.*
+
+### Dynamic Top Product
+```dax
+Dynamic Top Product = 
 SELECTCOLUMNS(
     TOPN(1, ALL(FactSales[Drug Class]), CALCULATE(SUM(FactSales[Units Sold]))),
     "Name", FactSales[Drug Class]
 )
 ```
 
-> The remaining measure formulas (YoY growth, running totals, top/bottom N by growth, peak hour/weekday) follow the same pattern — `CALCULATE` + time-intelligence functions (`DATEADD`/`PREVIOUSMONTH`/`PREVIOUSYEAR`) wrapped in `DIVIDE(...,...,0)` for safe division, and `TOPN`/`RANKX` for leader/laggard detection. Open the `.pbix` in Power BI Desktop and check the Measures Table for exact syntax if you want to quote a specific one in a write-up.
+### Dynamic Peak Hour
+```dax
+Dynamic Peak Hour = 
+VAR PeakHourNum = SELECTCOLUMNS(
+    TOPN(1, ALL(FactSales[Hour]), CALCULATE(SUM(FactSales[Units Sold]))),
+    "HourNum", FactSales[Hour]
+)
+RETURN 
+    PeakHourNum & ":00"
+```
+
+### Dynamic Peak Weekday
+```dax
+Dynamic Peak Weekday = 
+SELECTCOLUMNS(
+    TOPN(1, ALL(DimCalendar[Weekday]), CALCULATE(COUNTROWS(FactSales))),
+    "Day", DimCalendar[Weekday]
+)
+```
+
+### Top 1 Growth Product
+```dax
+Top 1 Growth Product = 
+VAR RankedProducts = TOPN(1, ALL(DimDrug[Drug Class]), [MOM Growth %])
+RETURN
+    CONCATENATEX(RankedProducts, DimDrug[Drug Class], ", ")
+```
+
+### Top 1 Growth Value
+```dax
+Top 1 Growth Value = MAXX(ALL(DimDrug[Drug Class]), [MOM Growth %])
+```
+
+### Bottom 1 Decline Product
+```dax
+Bottom 1 Decline Product = 
+VAR RankedLaggards = TOPN(1, ALL(DimDrug[Drug Class]), [MOM Growth %], ASC)
+RETURN
+    CONCATENATEX(RankedLaggards, DimDrug[Drug Class], ", ")
+```
+
+### Bottom 1 Decline Value
+```dax
+Bottom 1 Decline Value = MINX(ALL(DimDrug[Drug Class]), [MOM Growth %])
+```
+
+### Fastest Growing Drug
+```dax
+Fastest Growing Drug = [Top 1 Growth Product]
+```
+
+### Highest Selling Drug
+```dax
+Highest Selling Drug = [Dynamic Top Product]
+```
+
+---
+
+## 📦 Display Folder: 5. System Metadata & Tooltips
+*Technical report performance monitors and cross-layer parameters.*
+
+### Last Refresh Time
+```dax
+Last Refresh = NOW()
+```
+
+### Tooltip MoM Growth %
+```dax
+Tooltip MOM Growth % = 
+IF(
+    HASONEVALUE(DimDrug[Drug Class]),
+    [MOM Growth %],
+    BLANK()
+)
+```
